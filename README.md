@@ -95,6 +95,7 @@ routes/sessions.router.js
 
 `utils/hash.js` reúne el hash y la comparación de bcrypt. `models/User.js` declara el índice único de correo y excluye `password` de las consultas normales. El servicio limita la respuesta a los campos públicos. La comprobación previa de duplicados y el índice cubren tanto reintentos como registros simultáneos.
 
-## Evidencia de ejecución
+## Evidencias del registro
 
-Consulta los [resultados reales de HTTP y MongoDB](evidencias/registro.md), la [respuesta HTTP 201](evidencias/http-201.png) y el [documento persistido con el hash](evidencias/mongodb-hash.png). Las imágenes muestran las salidas de una ejecución local con datos ficticios.
+- [Postman — respuesta 201 sin el campo password](evidencias/http-201.png)
+- [MongoDB Compass — usuario guardado con hash bcrypt](evidencias/mongodb-hash.png)
