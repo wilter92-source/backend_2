@@ -11,9 +11,7 @@ export class SessionsService {
   }
 
   async register(body) {
-    if (REQUIRED_FIELDS.some((field) =>
-      typeof body?.[field] !== 'string' || !body[field].trim()
-    )) {
+    if (REQUIRED_FIELDS.some((field) => typeof body?.[field] !== 'string' || !body[field].trim())) {
       throw new HttpError(400, 'Faltan campos obligatorios o no son texto');
     }
 

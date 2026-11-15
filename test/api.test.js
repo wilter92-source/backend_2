@@ -11,7 +11,7 @@ before(async () => {
   await once(server, 'listening');
   base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => new Promise(resolve => server.close(resolve)));
+after(() => new Promise((resolve) => server.close(resolve)));
 test('health cumple el contrato', async () => {
   const r = await fetch(`${base}/api/health`);
   assert.equal(r.status, 200);
@@ -31,7 +31,11 @@ test('ruta inexistente responde 404', async () => {
   assert.equal(r.status, 404);
 });
 test('JSON inválido responde 400', async () => {
-  const r = await fetch(`${base}/api/events`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{' });
+  const r = await fetch(`${base}/api/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{'
+  });
   assert.equal(r.status, 400);
   assert.equal((await r.json()).message, 'JSON inválido');
 });
@@ -42,7 +46,8 @@ test('servicio permite inyectar el repositorio', async () => {
 test('User exige campos y restringe roles', () => {
   const u = new User({ role: 'invalid' });
   const e = u.validateSync();
-  for (const key of ['first_name', 'last_name', 'email', 'password', 'role']) assert.ok(e.errors[key]);
+  for (const key of ['first_name', 'last_name', 'email', 'password', 'role'])
+    assert.ok(e.errors[key]);
   assert.equal(User.schema.path('password').options.select, false);
 });
 test('Event rechaza cupos fraccionarios y fechas inválidas', () => {

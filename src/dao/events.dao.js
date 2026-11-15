@@ -1,5 +1,7 @@
 // Fuente vacía temporal autorizada por la consigna. No persiste datos.
 export class EventsDAO {
-  async findAll() { return []; }
+  async findAll() {
+    return [];
+  }
 }
 export const eventsDao = new EventsDAO();

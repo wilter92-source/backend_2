@@ -23,9 +23,11 @@ try {
     });
   }
 } catch (error) {
-  console.error(config.mongoUrl
-    ? `No se pudo preparar MongoDB (${error.code || error.name})`
-    : 'Configura MONGO_URL en el archivo .env');
+  console.error(
+    config.mongoUrl
+      ? `No se pudo preparar MongoDB (${error.code || error.name})`
+      : 'Configura MONGO_URL en el archivo .env'
+  );
   await disconnectDatabase();
   process.exitCode = 1;
 }

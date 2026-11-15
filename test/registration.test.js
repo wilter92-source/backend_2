@@ -38,7 +38,9 @@ test('el servicio valida los campos antes de consultar el repositorio', async ()
 test('duplicados detectados al guardar se traducen a estado 409', async () => {
   const service = new SessionsService({
     findByEmail: async () => null,
-    create: async () => { throw Object.assign(new Error(), { code: 11000 }); }
+    create: async () => {
+      throw Object.assign(new Error(), { code: 11000 });
+    }
   });
   await assert.rejects(service.register(registration), { status: 409 });
 });
@@ -47,9 +49,11 @@ test('Enrollment exige usuario y evento y define un índice único compuesto', (
   const error = new Enrollment().validateSync();
   assert.ok(error.errors.user);
   assert.ok(error.errors.event);
-  assert.ok(Enrollment.schema.indexes().some(([keys, options]) =>
-    keys.event === 1 && keys.user === 1 && options.unique
-  ));
+  assert.ok(
+    Enrollment.schema
+      .indexes()
+      .some(([keys, options]) => keys.event === 1 && keys.user === 1 && options.unique)
+  );
 });
 
 const testMongoUrl = process.env.TEST_MONGO_URL;
@@ -134,5 +138,4 @@ test('registro por HTTP con MongoDB real', { skip: !testMongoUrl }, async (t) =>
     assert.deepEqual(responses.map(({ status }) => status).sort(), [201, 409]);
     assert.equal(await User.countDocuments({ email: body.email }), 1);
   });
-
 });
