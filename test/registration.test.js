@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { test } from 'node:test';
 import mongoose from 'mongoose';
-import app from '../src/app.js';
+import jwt from 'jsonwebtoken';
+import 'dotenv/config';
 import { connectDatabase, disconnectDatabase } from '../src/config/database.js';
 import { Enrollment } from '../src/models/Enrollment.js';
 import { User } from '../src/models/User.js';
@@ -58,13 +59,18 @@ test('Enrollment exige usuario y evento y define un índice único compuesto', (
 
 const testMongoUrl = process.env.TEST_MONGO_URL;
 
-test('registro por HTTP con MongoDB real', { skip: !testMongoUrl }, async (t) => {
+test('registro y autenticación por HTTP con MongoDB real', { skip: !testMongoUrl }, async (t) => {
   let server;
-  let url;
+  const secret = randomUUID();
+  process.env.JWT_SECRET = secret;
+  process.env.JWT_EXPIRES_IN = '45m';
+  const { default: app } = await import('../src/app.js');
+  const databaseName = `escena_test_${randomUUID().replaceAll('-', '')}`;
+
   t.after(async () => {
     try {
       if (server) await new Promise((resolve) => server.close(resolve));
-      if (mongoose.connection.readyState === 1) {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.name === databaseName) {
         await mongoose.connection.dropDatabase();
       }
     } finally {
@@ -72,21 +78,22 @@ test('registro por HTTP con MongoDB real', { skip: !testMongoUrl }, async (t) =>
     }
   });
 
-  const databaseName = `escena_test_${randomUUID().replaceAll('-', '')}`;
-  const database = new URL(testMongoUrl);
-  database.pathname = `/${databaseName}`;
-  await connectDatabase(database.href);
+  await connectDatabase(testMongoUrl, { dbName: databaseName });
 
   server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  url = `http://127.0.0.1:${server.address().port}/api/sessions/register`;
+  const url = `http://127.0.0.1:${server.address().port}/api/sessions`;
 
-  async function register(body) {
-    const response = await fetch(url, {
+  function post(path, body) {
+    return fetch(url + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+  }
+
+  async function register(body) {
+    const response = await post('/register', body);
     return { status: response.status, body: await response.json() };
   }
 
@@ -132,10 +139,91 @@ test('registro por HTTP con MongoDB real', { skip: !testMongoUrl }, async (t) =>
     assert.equal(await User.countDocuments(), 1);
   });
 
-  await t.test('dos altas simultáneas dejan un solo usuario', async () => {
-    const body = { ...registration, email: 'duplicado@example.com' };
-    const responses = await Promise.all([register(body), register(body)]);
-    assert.deepEqual(responses.map(({ status }) => status).sort(), [201, 409]);
-    assert.equal(await User.countDocuments({ email: body.email }), 1);
+  await t.test('el índice único admite solo uno de doce registros concurrentes', async () => {
+    const indexes = await User.collection.indexes();
+    assert.ok(indexes.some(({ key, unique }) => key.email === 1 && unique));
+
+    const attempts = Array.from({ length: 12 }, (_, index) =>
+      register({
+        ...registration,
+        email: index % 2 === 0 ? ' Duplicado@Example.com ' : 'duplicado@example.com'
+      })
+    );
+    const responses = await Promise.all(attempts);
+    assert.equal(responses.filter(({ status }) => status === 201).length, 1);
+    const failures = responses.filter(({ status }) => status !== 201);
+    assert.equal(failures.length, 11);
+    for (const response of failures) {
+      assert.equal(response.status, 409);
+      assert.equal(response.body.message, 'El email ya está registrado');
+    }
+    assert.equal(await User.countDocuments({ email: 'duplicado@example.com' }), 1);
+  });
+
+  await t.test(
+    'un correo desconocido y una contraseña incorrecta devuelven el mismo 401',
+    async () => {
+      for (const credentials of [
+        { email: 'inexistente@example.com', password: registration.password },
+        { email: registration.email, password: 'incorrecta123' }
+      ]) {
+        const response = await post('/login', credentials);
+        assert.equal(response.status, 401);
+        assert.equal(response.headers.has('set-cookie'), false);
+        assert.deepEqual(await response.json(), {
+          status: 'error',
+          message: 'Credenciales inválidas'
+        });
+      }
+    }
+  );
+
+  await t.test('login, current, rechazo de tokens inválidos y logout', async () => {
+    const login = await post('/login', {
+      email: registration.email,
+      password: registration.password
+    });
+    assert.equal(login.status, 200);
+    assert.deepEqual(await login.json(), { status: 'success', message: 'Login correcto' });
+
+    const setCookie = login.headers.get('set-cookie');
+    assert.match(setCookie, /^currentUser=/);
+    assert.match(setCookie, /; HttpOnly/);
+    assert.match(setCookie, /; SameSite=Lax/);
+    assert.match(setCookie, /; Max-Age=3600/);
+    assert.equal(/; Secure/.test(setCookie), process.env.NODE_ENV === 'production');
+
+    const [cookie] = setCookie.split(';');
+    const token = cookie.slice('currentUser='.length);
+    const { exp, iat, ...claims } = jwt.verify(token, secret, { algorithms: ['HS256'] });
+    assert.equal(exp - iat, 45 * 60);
+    const user = await User.findOne({ email: 'ana@example.com' });
+    assert.deepEqual(claims, { id: String(user._id), email: user.email, role: 'user' });
+
+    const current = await fetch(url + '/current', { headers: { Cookie: cookie } });
+    assert.equal(current.status, 200);
+    assert.deepEqual(await current.json(), { status: 'success', payload: claims });
+
+    const expired = jwt.sign(claims, secret, { expiresIn: -1 });
+    const [header, payload, signature] = token.split('.');
+    const changed = signature.startsWith('A') ? 'B' : 'A';
+    const invalid = `${header}.${payload}.${changed}${signature.slice(1)}`;
+    for (const rejectedToken of [invalid, expired]) {
+      const response = await fetch(url + '/current', {
+        headers: { Cookie: `currentUser=${rejectedToken}` }
+      });
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), { status: 'error', message: 'No autenticado' });
+    }
+
+    const logout = await fetch(url + '/logout', { method: 'POST', headers: { Cookie: cookie } });
+    assert.equal(logout.status, 200);
+    assert.deepEqual(await logout.json(), { status: 'success', message: 'Sesión cerrada' });
+    assert.match(
+      logout.headers.get('set-cookie'),
+      /^currentUser=; Path=\/; Expires=Thu, 01 Jan 1970/
+    );
+    const afterLogout = await fetch(url + '/current');
+    assert.equal(afterLogout.status, 401);
   });
 });

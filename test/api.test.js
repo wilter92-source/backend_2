@@ -22,9 +22,27 @@ test('events devuelve una lista vacía', async () => {
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), { status: 'success', payload: [] });
 });
-test('sessions declara autenticación pendiente', async () => {
+test('sessions informa que la autenticación está disponible', async () => {
   const r = await fetch(`${base}/api/sessions`);
-  assert.equal(r.status, 501);
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { status: 'success', message: 'Autenticación disponible' });
+});
+test('current sin cookie devuelve 401', async () => {
+  const r = await fetch(`${base}/api/sessions/current`);
+  assert.equal(r.status, 401);
+  assert.deepEqual(await r.json(), { status: 'error', message: 'No autenticado' });
+});
+test('login rechaza campos faltantes antes de consultar MongoDB', async () => {
+  const r = await fetch(`${base}/api/sessions/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'ana@example.com' })
+  });
+  assert.equal(r.status, 400);
+  assert.deepEqual(await r.json(), {
+    status: 'error',
+    message: 'Email y contraseña son obligatorios'
+  });
 });
 test('ruta inexistente responde 404', async () => {
   const r = await fetch(`${base}/missing`);
