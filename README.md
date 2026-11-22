@@ -117,7 +117,11 @@ routes/sessions.router.js
 
 ## Evidencias del registro
 
-En el repositorio de entrega, las dos capturas previas deben tener una sola extensión `.png` y coincidir con estos nombres.
+- [Registro exitoso en Postman (201)](evidencias/http-201.png)
+- [Contraseña guardada como hash en MongoDB](evidencias/mongodb-hash.png)
 
-- [Postman — respuesta 201 sin el campo password](evidencias/http-201.png)
-- [MongoDB Compass — usuario guardado con hash bcrypt](evidencias/mongodb-hash.png)
+## Evidencias de autenticación
+
+- [Inicio de sesión con la cookie currentUser (200)](evidencias/login-200-cookie.png)
+- [Consulta del usuario con sesión activa (200)](evidencias/current-200.png)
+- [Consulta del usuario después de cerrar sesión (401)](evidencias/current-401.png)
