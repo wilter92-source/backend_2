@@ -2,6 +2,11 @@ import app from './app.js';
 import { config } from './config/config.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 
+if (!config.jwtSecret.trim()) {
+  console.error('Configura JWT_SECRET en el archivo .env');
+  process.exit(1);
+}
+
 try {
   await connectDatabase(config.mongoUrl);
 

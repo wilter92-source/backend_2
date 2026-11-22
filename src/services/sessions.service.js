@@ -1,6 +1,6 @@
 import { usersRepository } from '../repositories/users.repository.js';
 import { isValidEmail, normalizeEmail } from '../utils/email.js';
-import { hashPassword } from '../utils/hash.js';
+import { hashPassword, verifyPassword } from '../utils/hash.js';
 import { HttpError } from '../utils/HttpError.js';
 
 const REQUIRED_FIELDS = ['first_name', 'last_name', 'email', 'password'];
@@ -8,6 +8,24 @@ const REQUIRED_FIELDS = ['first_name', 'last_name', 'email', 'password'];
 export class SessionsService {
   constructor(repository) {
     this.repository = repository;
+  }
+
+  async login(body) {
+    const { email, password } = body ?? {};
+    if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
+      throw new HttpError(400, 'Email y contraseña son obligatorios');
+    }
+
+    const user = await this.repository.findCredentialsByEmail(normalizeEmail(email));
+    if (
+      !user ||
+      Buffer.byteLength(password, 'utf8') > 72 ||
+      !(await verifyPassword(password, user.password))
+    ) {
+      throw new HttpError(401, 'Credenciales inválidas');
+    }
+
+    return { id: String(user._id), email: user.email, role: user.role };
   }
 
   async register(body) {

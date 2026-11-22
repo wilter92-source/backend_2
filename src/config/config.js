@@ -8,5 +8,6 @@ export const config = Object.freeze({
   port,
   nodeEnv: process.env.NODE_ENV || 'development',
   mongoUrl: process.env.MONGO_URL || '',
-  jwtSecret: process.env.JWT_SECRET || ''
+  jwtSecret: process.env.JWT_SECRET || '',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h'
 });

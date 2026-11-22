@@ -1,7 +1,17 @@
 import { Router } from 'express';
-import { getSessionsStatus, register } from '../controllers/sessions.controller.js';
+import {
+  current,
+  getSessionsStatus,
+  login,
+  logout,
+  register
+} from '../controllers/sessions.controller.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 router.get('/', getSessionsStatus);
 router.post('/register', register);
+router.post('/login', login);
+router.get('/current', authenticate, current);
+router.post('/logout', logout);
 export default router;

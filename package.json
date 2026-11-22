@@ -2,7 +2,7 @@
   "name": "escena-guayaquil",
   "version": "1.0.0",
   "private": true,
-  "description": "Preentrega 2 - API de eventos culturales",
+  "description": "Preentrega 3 - API de eventos culturales",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -16,8 +16,10 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.9.5"
   },
   "devDependencies": {

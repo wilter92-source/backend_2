@@ -9,6 +9,10 @@ export class UsersRepository {
     return this.dao.findByEmail(email);
   }
 
+  findCredentialsByEmail(email) {
+    return this.dao.findCredentialsByEmail(email);
+  }
+
   create(user) {
     return this.dao.create(user);
   }

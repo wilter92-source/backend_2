@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { roles, USER_ROLE } from '../config/roles.js';
 import { isValidEmail } from '../utils/email.js';
 
 const userSchema = new mongoose.Schema(
@@ -15,7 +16,7 @@ const userSchema = new mongoose.Schema(
     },
     // El flujo de registro guarda aquí el hash de bcrypt.
     password: { type: String, required: true, select: false },
-    role: { type: String, enum: ['admin', 'organizer', 'user'], default: 'user' }
+    role: { type: String, enum: roles, default: USER_ROLE }
   },
   { timestamps: true }
 );
