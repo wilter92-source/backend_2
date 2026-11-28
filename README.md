@@ -1,6 +1,6 @@
 # Escena Guayaquil
 
-API de eventos culturales de Guayaquil. **Preentrega 3 de Programación Backend II — Autenticación con JWT y cookies.**
+API de eventos culturales de Guayaquil. **Preentrega 4 de Programación Backend II — Autenticación con Passport, JWT y cookies.**
 
 La API registra usuarios con bcrypt y usa JWT en una cookie HTTP Only para iniciar sesión, consultar el usuario autenticado y cerrar la sesión. El modelo `Enrollment` establece la relación entre usuarios y eventos y define un índice único por pareja.
 
@@ -98,30 +98,14 @@ En PowerShell, usa `$env:TEST_MONGO_URL = 'mongodb://127.0.0.1:27017'` y luego `
 
 `npm run format:check` verifica el formato y `npm run format` aplica Prettier.
 
-## Arquitectura
+## Estrategias de Passport
 
-`app.js` configura Express. `server.js` gestiona MongoDB y el arranque del servidor. El registro recorre:
+Express inicializa Passport después de leer las cookies. Las rutas usan `passport.authenticate` con `session: false`. Las tres estrategias se registran en `src/config/passport.config.js` con `passport-custom`.
 
-```text
-routes/sessions.router.js
-  → controllers/sessions.controller.js
-    → services/sessions.service.js
-      → repositories/users.repository.js
-        → dao/users.dao.js
-          → models/User.js
-```
+| Estrategia | Flujo |
+| --- | --- |
+| `register` | Delega en el servicio de sesiones la validación, la normalización del correo, la comprobación de duplicados y el hash bcrypt. El modelo asigna el rol inicial. El controlador devuelve el usuario público con estado 201. |
+| `login` | El servicio busca el correo normalizado y compara la contraseña con bcrypt. Tras autenticarse, el controlador firma el JWT y envía la cookie HTTP Only. |
+| `current` | Lee la cookie, verifica la firma HS256, el vencimiento y los campos del token. Passport deja en `req.user` el identificador, el correo y el rol. |
 
-`utils/hash.js` reúne el hash y la comparación de bcrypt. `models/User.js` declara el índice único de correo y excluye `password` de las consultas normales. El servicio limita la respuesta a los campos públicos. La comprobación previa de duplicados y el índice cubren tanto reintentos como registros simultáneos.
-
-`utils/jwt.js` firma y verifica el JWT. `middlewares/auth.middleware.js` lee la cookie, valida el token y asigna `req.user`. El modelo y el middleware comparten los roles de `config/roles.js`.
-
-## Evidencias del registro
-
-- [Registro exitoso en Postman (201)](evidencias/http-201.png)
-- [Contraseña guardada como hash en MongoDB](evidencias/mongodb-hash.png)
-
-## Evidencias de autenticación
-
-- [Inicio de sesión con la cookie currentUser (200)](evidencias/login-200-cookie.png)
-- [Consulta del usuario con sesión activa (200)](evidencias/current-200.png)
-- [Consulta del usuario después de cerrar sesión (401)](evidencias/current-401.png)
+El logout elimina la cookie desde el controlador. La configuración central permite registrar futuros proveedores como Google o GitHub sin modificar `app.js`.
